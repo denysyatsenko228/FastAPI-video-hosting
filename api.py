@@ -1,41 +1,29 @@
-import shutil
-from typing import List
-from fastapi import APIRouter, UploadFile, File, Form, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks
+from starlette.responses import StreamingResponse
 
-from schemas import UploadVideo, GetVideo, User, Message
+from models import User
+
+from schemas import GetVideo, Message
+
+from services import save_video
 
 
 video_router = APIRouter()
 
 
 @video_router.post("/")
-async def root(title: str = Form(...), description: str = Form(...), file: UploadFile = File(...)):
-    info = UploadVideo(title=title, description=description)
-    with open(f'{file.filename}', 'wb') as buffer:
-        shutil.copyfileobj(file.file, buffer)
+async def create_video(
+        back_tasks: BackgroundTasks,
+        title: str = Form(...),
+        description: str = Form(...),
+        file: UploadFile = File(...)):
 
-    return {"filename": file.filename, "info": info}
-
-
-@video_router.post("/img")
-async def upload_image(files: List[UploadFile] = File(...)):
-    for img in files:
-        with open(f'{img.filename}', 'wb') as buffer:
-            shutil.copyfileobj(img.file, buffer)
-
-    return {"filename": "Great!"}
+    user = await User.objects.first()
+    return await save_video(user, file, title, description, back_tasks)
 
 
-@video_router.get("/video", response_model=GetVideo, responses={404: {"model": Message}})
-async def get_video():
-    user = {"id": 25, "name": "Dudets"}
-    video = {'title': 'Test', 'description': "Description of the title"}
-    info = GetVideo(user=user, video=video)
-    return JSONResponse(status_code=200, content=info.dict())
-
-
-@video_router.get("/test")
-async def get_video(req: Request):
-    print(req.base_url)
-    return {}
+@video_router.get("/video/{video_pk}", response_model=GetVideo, responses={404: {"model": Message}})
+def get_video(video_pk: int):
+    # file = await Video.objects.select_related('user').get(pk=video_pk)
+    file_like = open('media/lesson3.mp4', mode='rb')
+    return StreamingResponse(file_like, media_type="video/mp4")
