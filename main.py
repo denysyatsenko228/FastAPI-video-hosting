@@ -1,7 +1,8 @@
 from db import database, metadata, engine
 from fastapi import FastAPI
-from api import video_router
 
+from video.api import video_router
+from user.routers import user_router
 
 app = FastAPI()
 
@@ -24,6 +25,8 @@ async def shutdown() -> None:
 
 
 app.include_router(video_router)
+app.include_router(user_router)
+
 
 
 
